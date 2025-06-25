@@ -1,4 +1,4 @@
-# Ragnarok 🚀  
+# Ragnarok 诸神黄昏🚀  
 
 **Go 泛型化高性能数据结构库** | [文档](https://yourdocs.link) | [示例](examples/)  
 
