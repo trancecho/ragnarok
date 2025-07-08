@@ -272,7 +272,7 @@ func TestPriorityQueue(t *testing.T) {
 					pq.Enqueue(tt.values[i])
 				} else if op == "dequeue" {
 					val, ok := pq.Dequeue()
-					if ok {
+					if ok == nil {
 						actualPops = append(actualPops, val)
 					} else {
 						actualPops = append(actualPops, 0) // 出队失败
