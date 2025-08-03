@@ -1,6 +1,6 @@
 module github.com/trancecho/ragnarok
 
-go 1.24.5
+go 1.24.1
 
 require github.com/gin-gonic/gin v1.10.1
 
