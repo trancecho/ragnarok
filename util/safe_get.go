@@ -1,4 +1,4 @@
-package b_util
+package util
 
 import (
 	"log"
