@@ -23,7 +23,6 @@ const (
 
 type Config struct {
 	Mode         string `json:"mode"` // "dev" or "prod"
-	Level        Level  `json:"level"`
 	LogFile      string `json:"log_file"`
 	EnableFile   bool   `json:"enable_file"` // 本地日志开关
 	SentryDSN    string `json:"sentry_dsn"`
@@ -50,9 +49,11 @@ func Init(cfg Config) bool {
 
 	var cores []zapcore.Core
 
-	// 控制台输出 - dev模式全打印，prod模式不打印debug
-	consoleLevel := cfg.Level
-	if cfg.Mode == "prod" && consoleLevel == DebugLevel {
+	// 控制台输出 - dev模式全打印，prod模式只打印info及以上
+	var consoleLevel Level
+	if cfg.Mode == "dev" {
+		consoleLevel = DebugLevel
+	} else {
 		consoleLevel = InfoLevel
 	}
 
