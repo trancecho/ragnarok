@@ -1,0 +1,10 @@
+redis:
+  addr:
+  password:
+  db:
+mysql:
+  user:
+  password:
+  host:
+  port:
+  db:
