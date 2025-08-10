@@ -58,7 +58,7 @@ func InitMysql(models ...any) *gorm.DB {
 	}
 
 	// 自动迁移 (创建或更新表结构)
-	err = db.AutoMigrate(models)
+	err = db.AutoMigrate(models...)
 	if err != nil {
 		log.Fatalf("failed to migrate database: %v", err)
 	}
