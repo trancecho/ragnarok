@@ -3,10 +3,11 @@ package rrdb
 import (
 	"context"
 	"errors"
-	"github.com/redis/go-redis/v9"
 	"log"
 	"strings"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 // StreamClient provides a simple interface for Redis stream operations.
