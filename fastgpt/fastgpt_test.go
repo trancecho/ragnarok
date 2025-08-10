@@ -31,7 +31,7 @@ func TestFastGPTService_FastGPTChat(t *testing.T) {
 	}
 
 	// Create service with real config
-	service := NewFastGPTService(apiKey, baseURL)
+	service := NewFastClient(apiKey, baseURL)
 	u7, _ := uuid.NewV7()
 	// Test request
 	req := Request{
@@ -104,7 +104,7 @@ func TestFastGPTService_FastGPTStreamChat(t *testing.T) {
 	}
 
 	// Create service with real config
-	service := NewFastGPTService(apiKey, baseURL)
+	service := NewFastClient(apiKey, baseURL)
 	u7, _ := uuid.NewV7()
 	// Test request
 	req := Request{

@@ -10,15 +10,15 @@ import (
 	"time"
 )
 
-type FastGPTService struct {
+type Client struct {
 	apiKey     string
 	apiBaseURL string
 	httpClient *http.Client
 }
 
-// NewFastGPTService creates a new FastGPT service client
-func NewFastGPTService(apiKey string, apiBaseURL string) *FastGPTService {
-	return &FastGPTService{
+// NewFastClient creates a new FastGPT service client
+func NewFastClient(apiKey string, apiBaseURL string) *Client {
+	return &Client{
 		apiKey:     apiKey,
 		apiBaseURL: apiBaseURL,
 		httpClient: &http.Client{
@@ -28,7 +28,7 @@ func NewFastGPTService(apiKey string, apiBaseURL string) *FastGPTService {
 }
 
 // FastGPTChat sends a chat request to FastGPT and returns the response
-func (s *FastGPTService) FastGPTChat(req Request) ([]byte, error) {
+func (s *Client) FastGPTChat(req Request) ([]byte, error) {
 	jsonData, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling request: %w", err)
@@ -62,7 +62,7 @@ func (s *FastGPTService) FastGPTChat(req Request) ([]byte, error) {
 }
 
 // FastGPTStreamChat sends a streaming chat request to FastGPT and processes chunks with the callback
-func (s *FastGPTService) FastGPTStreamChat(req Request, callback func(data []byte)) error {
+func (s *Client) FastGPTStreamChat(req Request, callback func(data []byte)) error {
 	// Ensure stream is enabled
 	req.Stream = true
 

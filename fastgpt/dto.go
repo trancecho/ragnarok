@@ -1,5 +1,13 @@
 package fastgpt
 
+type Request struct {
+	ChatID    string                 `json:"chatId"`
+	Stream    bool                   `json:"stream"`
+	Detail    bool                   `json:"detail"` // 一般false
+	Variables map[string]interface{} `json:"variables"`
+	Messages  []Message              `json:"messages"`
+}
+
 type Response struct {
 	Id      string `json:"id"`
 	Created int64  `json:"created"`
@@ -16,12 +24,4 @@ type Response struct {
 type Message struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
-}
-
-type Request struct {
-	ChatID    string                 `json:"chatId"`
-	Stream    bool                   `json:"stream"`
-	Detail    bool                   `json:"detail"` // 一般false
-	Variables map[string]interface{} `json:"variables"`
-	Messages  []Message              `json:"messages"`
 }
