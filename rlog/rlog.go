@@ -2,6 +2,8 @@ package rlog
 
 import (
 	"fmt"
+	"gorm.io/datatypes"
+	"gorm.io/gorm"
 	"log"
 	"os"
 	"path/filepath"
@@ -27,11 +29,21 @@ type Config struct {
 	EnableFile   bool   `json:"enable_file"` // 本地日志开关
 	SentryDSN    string `json:"sentry_dsn"`
 	EnableSentry bool   `json:"enable_sentry"` // Sentry开关
+	EnableMysql  bool   `json:"enable_mysql"`  // MySQL日志开关
 }
 
 var logger *zap.Logger
+var dbx *gorm.DB
 
-func Init(cfg Config) bool {
+// rlog 结构体用于存储日志信息
+type rlog struct {
+	Level   string         `gorm:"column:level"`
+	Message string         `gorm:"column:message"`
+	Time    string         `gorm:"column:time"`
+	Fields  datatypes.JSON `gorm:"column:fields"`
+}
+
+func Init(cfg Config, db *gorm.DB) bool {
 	// 创建日志目录
 	if cfg.EnableFile && cfg.LogFile != "" {
 		if err := os.MkdirAll(filepath.Dir(cfg.LogFile), 0755); err != nil {
@@ -44,6 +56,15 @@ func Init(cfg Config) bool {
 		err := sentry.Init(sentry.ClientOptions{Dsn: cfg.SentryDSN})
 		if err != nil {
 			log.Fatalln(err)
+		}
+	}
+	if cfg.EnableMysql && db != nil {
+		dbx = db
+		// 自动迁移日志表
+		err := db.AutoMigrate(&rlog{})
+		if err != nil {
+			logger.Error("failed to auto migrate rlog table", zap.Error(err))
+			return false
 		}
 	}
 
@@ -99,13 +120,18 @@ func Init(cfg Config) bool {
 
 // 简洁的日志接口 - 删除Warn级别
 func Debugln(msg string, fields ...zap.Field) { logger.Debug(msg, fields...) }
-func Println(msg string, fields ...zap.Field) { logger.Info(msg, fields...) }
+func Println(msg string, fields ...zap.Field) {
+	logger.Info(msg, fields...)
+	go save2Mysql(dbx, InfoLevel, msg, fields...) // 如果需要保存到MySQL，可以传入db实例
+}
 func Errln(msg string, fields ...zap.Field) {
 	logger.Error(msg, fields...)
+	go save2Mysql(dbx, ErrorLevel, msg, fields...) // 如果需要保存到MySQL，可以传入db实例
 	sendToSentry(ErrorLevel, msg, fields...)
 }
 func Fatalln(msg string, fields ...zap.Field) {
 	logger.Fatal(msg, fields...)
+	go save2Mysql(dbx, FatalLevel, msg, fields...) // 如果需要保存到MySQL，可以传入db实例
 	sendToSentry(FatalLevel, msg, fields...)
 }
 
@@ -155,6 +181,36 @@ func sendToSentry(level Level, msg string, fields ...zap.Field) {
 			sentry.CaptureException(fmt.Errorf(msg))
 		}
 	})
+}
+
+func save2Mysql(db *gorm.DB, level Level, msg string, fields ...zap.Field) {
+	if db == nil || level < ErrorLevel {
+		return
+	}
+
+	logEntry := map[string]interface{}{
+		"level":   level.String(),
+		"message": msg,
+		"time":    time.Now().Format(time.RFC3339),
+		"fields":  make(map[string]interface{}),
+	}
+
+	for _, field := range fields {
+		switch field.Type {
+		case zapcore.StringType:
+			logEntry[field.Key] = field.String
+		case zapcore.Int64Type:
+			logEntry[field.Key] = field.Integer
+		case zapcore.Float64Type:
+			logEntry[field.Key] = field.Interface
+		default:
+			logEntry[field.Key] = field.Interface
+		}
+	}
+
+	if err := db.Model(&rlog{}).Create(logEntry).Error; err != nil {
+		logger.Error("failed to save log to database", zap.Error(err))
+	}
 }
 
 // 文件写入器

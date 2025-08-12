@@ -4,3 +4,4 @@ rlog:
     enable_file:  false
     sentry_dsn:
     enable_sentry: false
+    enable_mysql: true
