@@ -1,5 +1,7 @@
 package heap
 
+import "errors"
+
 // Comparable 定义了一个比较函数类型
 type Comparable[T any] func(a, b T) int
 
@@ -92,26 +94,26 @@ func (h *Heap[T]) Insert(value T) {
 }
 
 // Pop 弹出堆顶元素
-func (h *Heap[T]) Pop() (T, bool) {
+func (h *Heap[T]) Pop() (T, error) {
 	var zero T
 	if h.heapSize == 0 {
-		return zero, false // 堆为空
+		return zero, errors.New("栈为空") // 堆为空
 	}
 	top := h.HPDate[0]
 	h.HPDate[0] = h.HPDate[h.heapSize-1]
 	h.heapSize--
 	parentIndex := 0
 	h.DownAdjust(&parentIndex)
-	return top, true
+	return top, nil
 }
 
 // Peek 获取堆顶元素
-func (h *Heap[T]) Peek() (T, bool) {
+func (h *Heap[T]) Peek() (T, error) {
 	var zero T
 	if h.heapSize == 0 {
-		return zero, false // 堆为空
+		return zero, errors.New("栈为空") // 堆为空
 	}
-	return h.HPDate[0], true // 返回堆顶元素
+	return h.HPDate[0], nil // 返回堆顶元素
 }
 
 // Size 获取堆的大小
@@ -203,7 +205,7 @@ func (pq *PriorityQueue[T]) Enqueue(value T) {
 }
 
 // Dequeue 出队
-func (pq *PriorityQueue[T]) Dequeue() (T, bool) {
+func (pq *PriorityQueue[T]) Dequeue() (T, error) {
 	return pq.heap.Pop()
 }
 

@@ -1,4 +1,4 @@
-package b_util
+package util
 
 func Round(value float64, precision int) float64 {
 	if precision < 0 {

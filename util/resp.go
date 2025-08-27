@@ -1,4 +1,4 @@
-package b_util
+package util
 
 import (
 	"log"
@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Ok(c *gin.Context, message string, data gin.H) {
+func Ok(c *gin.Context, message string, data any) {
 	if data == nil {
 		data = gin.H{}
 	}
@@ -39,16 +39,11 @@ const (
 )
 
 const (
-	// 权限错误
-	AuthError = "Auth.Error"
-	// 参数错误
-	ParamError = "Param.Error"
-	// 数据库错误
-	DbError = "Db.Error"
-	// 业务错误
-	BusinessError = "Business.Error"
-	// 文件错误
-	FileError = "File.Error"
-	// 其他错误
-	OtherError = "Other.Error"
+	AuthError         = "Error.Auth"
+	DefaultError      = "Error.Default"
+	QueryParamError   = "Error.QueryParam"
+	UnAuthorizedError = "Error.UnAuthorized"
+	TokenExpiredError = "Error.TokenExpired"
+	// 权限不足
+	PermissionDeniedError = "Error.PermissionDenied"
 )

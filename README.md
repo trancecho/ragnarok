@@ -35,9 +35,7 @@ exists := filter.Contains("Ragnarok") // true/false
 
 ## 设计理念  
 
-- **对标 Redis**：参考其高效结构（如哈希表+链表实现有序集合）  
-- **Go 原生风格**：拒绝过度封装，API 类似 `sync.Map` 或 `container/heap`  
-- **安全第一**：内置边界检查、panic 恢复、竞态检测（`-race` 友好）  
+- all in one， 简洁的实现，极致的性能，广泛的适配。
 
 ## 贡献 & 社区  
 
