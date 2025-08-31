@@ -1,0 +1,7 @@
+sealos_oss:
+  endpoint:
+  access_key_id:
+  secret_access_key:
+  region:
+  bucket_name:
+  presign_expire:
