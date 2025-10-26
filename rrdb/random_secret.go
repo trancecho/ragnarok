@@ -3,6 +3,7 @@ package rrdb
 import (
 	"context"
 	"fmt"
+	"log"
 	"math/rand"
 	"time"
 
@@ -13,25 +14,37 @@ type RandomSecretManager struct {
 	rdb *redis.Client
 }
 
+func NewRandomSecretManager(rdb *redis.Client) *RandomSecretManager {
+	return &RandomSecretManager{rdb: rdb}
+}
+
 func (this *RandomSecretManager) KeepSecrets(ctx context.Context, secrets []string) (err error) {
+	rand.Seed(time.Now().UnixNano())
 	ticker := time.NewTicker(10 * time.Minute)
+	generate := func() {
+		for i := range secrets {
+			// 随机生成六位数
+			num := rand.Intn(900000) + 100000 // 生成 100000 ~ 999999
+			secret := fmt.Sprintf("%d", num)
+			this.rdb.Set(ctx, "ragnarok:secret:"+secrets[i], secret, 11*time.Minute)
+		}
+	}
 	go func() {
+		generate()
 		for {
 			select {
 			case <-ticker.C:
 				{
-					for i := range secrets {
-						// 随机生成六位数
-						rand.Seed(time.Now().UnixNano())  // 每次运行随机不同
-						num := rand.Intn(900000) + 100000 // 生成 100000 ~ 999999
-						secret := fmt.Sprintf("%d", num)
-						this.rdb.Set(ctx, "ragnarok:secret:"+secrets[i], secret, 11*time.Minute)
-					}
+					generate()
 				}
 			case <-ctx.Done():
 				{
-					for i := range secrets {
-						this.rdb.Del(ctx, secrets[i])
+					for _, key := range secrets {
+						delCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+						if err := this.rdb.Del(delCtx, "ragnarok:secret:"+key).Err(); err != nil {
+							log.Printf("Failed to delete secret: %v", err)
+						}
+						cancel()
 					}
 					ticker.Stop()
 					return
@@ -44,7 +57,7 @@ func (this *RandomSecretManager) KeepSecrets(ctx context.Context, secrets []stri
 
 func (this *RandomSecretManager) GetSecret(secretKey string) (string, error) {
 	ctx := context.Background()
-	secret, err := this.rdb.Get(ctx, secretKey).Result()
+	secret, err := this.rdb.Get(ctx, "ragnarok:secret:"+secretKey).Result()
 	if err != nil {
 		return "", err
 	}
