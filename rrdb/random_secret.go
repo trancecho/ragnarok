@@ -3,7 +3,6 @@ package rrdb
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/rand"
 	"time"
 
@@ -39,13 +38,13 @@ func (this *RandomSecretManager) KeepSecrets(ctx context.Context, secrets []stri
 				}
 			case <-ctx.Done():
 				{
-					for _, key := range secrets {
-						delCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-						if err := this.rdb.Del(delCtx, "ragnarok:secret:"+key).Err(); err != nil {
-							log.Printf("Failed to delete secret: %v", err)
-						}
-						cancel()
-					}
+					//for _, key := range secrets {
+					//	delCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					//	if err := this.rdb.Del(delCtx, "ragnarok:secret:"+key).Err(); err != nil {
+					//		log.Printf("Failed to delete secret: %v", err)
+					//	}
+					//	cancel()
+					//}
 					ticker.Stop()
 					return
 				}
