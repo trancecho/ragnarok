@@ -2,12 +2,14 @@ package rlog
 
 import (
 	"fmt"
-	"gorm.io/datatypes"
-	"gorm.io/gorm"
 	"log"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/spf13/viper"
+	"gorm.io/datatypes"
+	"gorm.io/gorm"
 
 	"github.com/getsentry/sentry-go"
 	"go.uber.org/zap"
@@ -41,6 +43,23 @@ type rlog struct {
 	Message string         `gorm:"column:message"`
 	Time    string         `gorm:"column:time"`
 	Fields  datatypes.JSON `gorm:"column:fields"`
+}
+
+func InitConfig() Config {
+	configs := []string{"rlog.mode", "rlog.log_file", "rlog.enable_file", "rlog.sentry_dsn", "rlog.enable_sentry", "rlog.enable_mysql"}
+	for i := range configs {
+		if !viper.IsSet(configs[i]) {
+			log.Fatalf("❌ rlog 配置项 %s 未设置，请检查配置文件或环境变量", configs[i])
+		}
+	}
+	return Config{
+		Mode:         viper.GetString("rlog.mode"),
+		LogFile:      viper.GetString("rlog.log_file"),
+		EnableFile:   viper.GetBool("rlog.enable_file"),
+		SentryDSN:    viper.GetString("rlog.sentry_dsn"),
+		EnableSentry: viper.GetBool("rlog.enable_sentry"),
+		EnableMysql:  viper.GetBool("rlog.enable_mysql"),
+	}
 }
 
 func Init(cfg Config, db *gorm.DB) bool {

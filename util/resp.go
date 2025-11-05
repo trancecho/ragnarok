@@ -1,8 +1,6 @@
 package util
 
 import (
-	"log"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,7 +17,6 @@ func Ok(c *gin.Context, message string, data any) {
 
 // 规范：错误码提供三位，从000开始
 func ClientError(c *gin.Context, errCode any, message string) {
-	log.Println("客户端错误", errCode, message)
 	c.JSON(400, gin.H{
 		"err_code": errCode,
 		"message":  message,
@@ -27,7 +24,6 @@ func ClientError(c *gin.Context, errCode any, message string) {
 }
 
 func ServerError(c *gin.Context, errCode any, message string) {
-	log.Println("服务端错误", errCode, message)
 	c.JSON(500, gin.H{
 		"err_code": errCode,
 		"message":  message,
