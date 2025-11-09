@@ -36,7 +36,7 @@ func GenerateToken(userID uint, username, role string, secret string, appName st
 }
 
 // 验证 JWT Token
-func ParseToken(tokenString string, secret string) (*Claims, error) {
+func ParseToken(tokenString string, secret []byte) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		return secret, nil
 	})
