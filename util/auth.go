@@ -32,7 +32,7 @@ func GenerateToken(userID uint, username, role string, secret string, appName st
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(secret)
+	return token.SignedString([]byte(secret))
 }
 
 // 验证 JWT Token
