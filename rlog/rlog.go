@@ -139,6 +139,7 @@ func Init(cfg Config, db *gorm.DB) bool {
 
 // 简洁的日志接口 - 删除Warn级别
 func Debugln(msg string, fields ...zap.Field) { logger.Debug(msg, fields...) }
+func Warnln(msg string, fields ...zap.Field)  { logger.Warn(msg, fields...) }
 func Println(msg string, fields ...zap.Field) {
 	logger.Info(msg, fields...)
 	go save2Mysql(dbx, InfoLevel, msg, fields...) // 如果需要保存到MySQL，可以传入db实例
@@ -157,6 +158,7 @@ func Fatalln(msg string, fields ...zap.Field) {
 // 便捷字段构造器
 func String(key, val string) zap.Field                 { return zap.String(key, val) }
 func Int(key string, val int) zap.Field                { return zap.Int(key, val) }
+func Uint(key string, val uint) zap.Field              { return zap.Uint(key, val) }
 func Float64(key string, val float64) zap.Field        { return zap.Float64(key, val) }
 func Bool(key string, val bool) zap.Field              { return zap.Bool(key, val) }
 func Any(key string, val interface{}) zap.Field        { return zap.Any(key, val) }
