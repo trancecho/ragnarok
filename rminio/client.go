@@ -92,6 +92,23 @@ func (m *MinioClient) DownloadAsStream(bucketName, objectName string) (*minio.Ob
 	return obj, nil
 }
 
+// GetFileContent 获取文件内容为字节数组
+func (m *MinioClient) GetFileContent(bucketName, objectName string) ([]byte, error) {
+	obj, err := m.client.GetObject(context.Background(), bucketName, objectName, minio.GetObjectOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get object: %v", err)
+	}
+	defer obj.Close()
+
+	// 读取所有内容
+	content, err := io.ReadAll(obj)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read object content: %v", err)
+	}
+
+	return content, nil
+}
+
 // RemoveFile 删除文件
 func (m *MinioClient) RemoveFile(bucketName, objectName string) error {
 	err := m.client.RemoveObject(context.Background(), bucketName, objectName, minio.RemoveObjectOptions{})
