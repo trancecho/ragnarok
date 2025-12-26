@@ -4,14 +4,16 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"gorm.io/gorm"
 	"log"
 	"time"
 
+	"gorm.io/gorm"
+
 	"github.com/redis/go-redis/v9"
+	"github.com/spf13/viper"
+	"github.com/trancecho/ragnarok/rnats"
 	"gorm.io/driver/mysql"
 )
-import "github.com/spf13/viper"
 
 func InitViper() {
 	var mode string
@@ -98,4 +100,35 @@ func InitRedis() *redis.Client {
 		return nil
 	}
 	return redisClient
+}
+
+func InitNats() *rnats.Client {
+	var check []string
+	check = []string{"nats.url"}
+	for _, s := range check {
+		if !viper.IsSet(s) {
+			log.Fatalf("配置项 %s 未设置，请检查配置文件", s)
+		}
+	}
+
+	client, err := rnats.NewClient(rnats.Config{
+		URL:      viper.GetString("nats.url"),
+		Username: viper.GetString("nats.username"),
+		Password: viper.GetString("nats.password"),
+		Name:     viper.GetString("nats.name"),
+	})
+	if err != nil {
+		log.Fatalf("failed to connect to NATS: %v", err)
+	}
+
+	// 测试连接是否正常
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := client.Ping(ctx); err != nil {
+		log.Fatalf("failed to ping NATS: %v", err)
+	}
+
+	log.Println("NATS client initialized successfully")
+	return client
 }
