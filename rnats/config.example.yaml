@@ -1,0 +1,21 @@
+# NATS Configuration Example
+# Add this to your config.dev.yaml or config.prod.yaml
+
+nats:
+  # NATS server URL
+  url: "nats://localhost:4222"
+  
+  # Optional: Authentication credentials
+  username: ""
+  password: ""
+  
+  # Connection name (used for monitoring and debugging)
+  name: "ragnarok-app"
+
+# If using NATS with TLS (production):
+# nats:
+#   url: "tls://nats.example.com:4222"
+#   username: "your-username"
+#   password: "your-password"
+#   name: "ragnarok-app-prod"
+
