@@ -105,7 +105,7 @@ func (c *Client) Ping(ctx context.Context) error {
 // ============ Publish-Subscribe Methods ============
 
 // MessageHandler is a function that processes a single message.
-type MessageHandler func(data []byte) error
+type MessageHandler func(msg jetstream.Msg) error
 
 // Publish sends a message to the specified subject.
 // The data will be automatically serialized to JSON.
@@ -157,7 +157,7 @@ func (c *Client) Subscribe(ctx context.Context, subject, stream, consumer string
 
 	// Consume messages
 	_, err = cons.Consume(func(msg jetstream.Msg) {
-		processingErr := handler(msg.Data())
+		processingErr := handler(msg)
 		if processingErr != nil {
 			log.Printf("Error processing message: %v. Message will not be acknowledged.", processingErr)
 			if nackErr := msg.Nak(); nackErr != nil {
@@ -166,9 +166,9 @@ func (c *Client) Subscribe(ctx context.Context, subject, stream, consumer string
 			return
 		}
 
-		if ackErr := msg.Ack(); ackErr != nil {
-			log.Printf("Error acknowledging message: %v", ackErr)
-		}
+		//if ackErr := msg.Ack(); ackErr != nil {
+		//	log.Printf("Error acknowledging message: %v", ackErr)
+		//}
 	})
 
 	if err != nil {
@@ -181,16 +181,16 @@ func (c *Client) Subscribe(ctx context.Context, subject, stream, consumer string
 	return ctx.Err()
 }
 
-// SubscribeWithJSON is similar to Subscribe but automatically deserializes JSON messages.
-func (c *Client) SubscribeWithJSON(ctx context.Context, subject, stream, consumer string, handler func(data map[string]interface{}) error) error {
-	return c.Subscribe(ctx, subject, stream, consumer, func(data []byte) error {
-		var msg map[string]interface{}
-		if err := json.Unmarshal(data, &msg); err != nil {
-			return fmt.Errorf("failed to unmarshal JSON: %w", err)
-		}
-		return handler(msg)
-	})
-}
+//// SubscribeWithJSON is similar to Subscribe but automatically deserializes JSON messages.
+//func (c *Client) SubscribeWithJSON(ctx context.Context, subject, stream, consumer string, handler func(data map[string]interface{}) error) error {
+//	return c.Subscribe(ctx, subject, stream, consumer, func(data []byte) error {
+//		var msg map[string]interface{}
+//		if err := json.Unmarshal(data, &msg); err != nil {
+//			return fmt.Errorf("failed to unmarshal JSON: %w", err)
+//		}
+//		return handler(msg)
+//	})
+//}
 
 // Request sends a request and waits for a reply (request-reply pattern)
 func (c *Client) Request(ctx context.Context, subject string, data interface{}, timeout time.Duration) ([]byte, error) {
