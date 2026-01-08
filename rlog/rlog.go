@@ -144,6 +144,10 @@ func Println(msg string, fields ...zap.Field) {
 	logger.Info(msg, fields...)
 	go save2Mysql(dbx, InfoLevel, msg, fields...) // 如果需要保存到MySQL，可以传入db实例
 }
+func Infoln(msg string, fields ...zap.Field) {
+	logger.Info(msg, fields...)
+	go save2Mysql(dbx, InfoLevel, msg, fields...) // 如果需要保存到MySQL，可以传入db实例
+}
 func Errln(msg string, fields ...zap.Field) {
 	logger.Error(msg, fields...)
 	go save2Mysql(dbx, ErrorLevel, msg, fields...) // 如果需要保存到MySQL，可以传入db实例
