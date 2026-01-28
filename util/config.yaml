@@ -8,3 +8,8 @@ mysql:
   host:
   port:
   db:
+clickhouse:
+  addr: "localhost:9000"
+  user: admin
+  password: clickhouse123
+  database: default

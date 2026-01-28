@@ -4,14 +4,17 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"gorm.io/gorm"
 	"log"
 	"time"
 
+	"gorm.io/gorm"
+
 	"github.com/redis/go-redis/v9"
+	"github.com/spf13/viper"
+	"github.com/trancecho/ragnarok/rnats"
+	"gorm.io/driver/clickhouse"
 	"gorm.io/driver/mysql"
 )
-import "github.com/spf13/viper"
 
 func InitViper() {
 	var mode string
@@ -98,4 +101,73 @@ func InitRedis() *redis.Client {
 		return nil
 	}
 	return redisClient
+}
+
+func InitNats() *rnats.Client {
+	var check []string
+	check = []string{"nats.url"}
+	for _, s := range check {
+		if !viper.IsSet(s) {
+			log.Fatalf("配置项 %s 未设置，请检查配置文件", s)
+		}
+	}
+
+	client, err := rnats.NewClient(rnats.Config{
+		URL:      viper.GetString("nats.url"),
+		Username: viper.GetString("nats.username"),
+		Password: viper.GetString("nats.password"),
+		Name:     viper.GetString("nats.name"),
+	})
+	if err != nil {
+		log.Fatalf("failed to connect to NATS: %v", err)
+	}
+
+	// 测试连接是否正常
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := client.Ping(ctx); err != nil {
+		log.Fatalf("failed to ping NATS: %v", err)
+	}
+
+	log.Println("NATS client initialized successfully")
+	return client
+}
+
+func InitClickHouse(models ...any) *gorm.DB {
+	var check []string
+	check = []string{"clickhouse.addr", "clickhouse.user", "clickhouse.password", "clickhouse.database"}
+	for _, s := range check {
+		if !viper.IsSet(s) {
+			log.Fatalf("配置项 %s 未设置，请检查配置文件", s)
+		}
+	}
+
+	// ClickHouse 连接配置
+	// 格式: clickhouse://username:password@host:port/database?dial_timeout=10s&read_timeout=20s
+	dsn := fmt.Sprintf(
+		"clickhouse://%s:%s@%s/%s?dial_timeout=10s&read_timeout=20s",
+		viper.GetString("clickhouse.user"),
+		viper.GetString("clickhouse.password"),
+		viper.GetString("clickhouse.addr"),
+		viper.GetString("clickhouse.database"),
+	)
+
+	// 连接数据库
+	db, err := gorm.Open(clickhouse.Open(dsn), &gorm.Config{})
+	if err != nil {
+		log.Fatalf("failed to connect to ClickHouse: %v", err)
+	}
+
+	// 自动迁移 (ClickHouse 的 AutoMigrate 支持有限，主要用于验证表是否存在)
+	if len(models) > 0 {
+		err = db.AutoMigrate(models...)
+		if err != nil {
+			log.Printf("warning: failed to migrate ClickHouse database: %v", err)
+			// ClickHouse 的 AutoMigrate 可能会失败，只记录警告
+		}
+	}
+
+	log.Println("ClickHouse client initialized successfully")
+	return db
 }
