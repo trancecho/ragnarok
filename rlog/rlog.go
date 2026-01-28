@@ -1,6 +1,8 @@
 package rlog
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -203,7 +205,7 @@ func sendToSentry(level Level, msg string, fields ...zap.Field) {
 		case ErrorLevel:
 			sentry.CaptureMessage(msg)
 		case FatalLevel:
-			sentry.CaptureException(fmt.Errorf(msg))
+			sentry.CaptureException(errors.New(msg))
 		}
 	})
 }
@@ -213,27 +215,40 @@ func save2Mysql(db *gorm.DB, level Level, msg string, fields ...zap.Field) {
 		return
 	}
 
-	logEntry := map[string]interface{}{
-		"level":   level.String(),
-		"message": msg,
-		"time":    time.Now().Format(time.RFC3339),
-		"fields":  make(map[string]interface{}),
-	}
-
+	// 收集字段到一个 map，然后作为 JSON 存入 Fields 列
+	fieldsMap := make(map[string]interface{})
 	for _, field := range fields {
 		switch field.Type {
 		case zapcore.StringType:
-			logEntry[field.Key] = field.String
-		case zapcore.Int64Type:
-			logEntry[field.Key] = field.Integer
-		case zapcore.Float64Type:
-			logEntry[field.Key] = field.Interface
+			fieldsMap[field.Key] = field.String
+		case zapcore.Int64Type, zapcore.Int32Type, zapcore.Int16Type, zapcore.Int8Type:
+			fieldsMap[field.Key] = field.Integer
+		case zapcore.Uint64Type, zapcore.Uint32Type, zapcore.Uint16Type, zapcore.Uint8Type:
+			fieldsMap[field.Key] = field.Integer
+		case zapcore.Float64Type, zapcore.Float32Type:
+			fieldsMap[field.Key] = field.Interface
+		case zapcore.BoolType:
+			fieldsMap[field.Key] = field.Interface
 		default:
-			logEntry[field.Key] = field.Interface
+			fieldsMap[field.Key] = field.Interface
 		}
 	}
 
-	if err := db.Model(&rlog{}).Create(logEntry).Error; err != nil {
+	// 正确序列化为 datatypes.JSON
+	jsonBytes, err := json.Marshal(fieldsMap)
+	if err != nil {
+		logger.Error("failed to marshal fields to JSON", zap.Error(err))
+		return
+	}
+
+	entry := &rlog{
+		Level:   level.String(),
+		Message: msg,
+		Time:    time.Now().Format(time.RFC3339),
+		Fields:  datatypes.JSON(jsonBytes),
+	}
+
+	if err := db.Create(entry).Error; err != nil {
 		logger.Error("failed to save log to database", zap.Error(err))
 	}
 }
