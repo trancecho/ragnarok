@@ -1,12 +1,14 @@
 package rlog
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/spf13/viper"
@@ -38,6 +40,7 @@ type Config struct {
 
 var logger *zap.Logger
 var dbx *gorm.DB
+var logWriter *LogWriter
 
 // rlog 结构体用于存储日志信息
 type rlog struct {
@@ -45,6 +48,86 @@ type rlog struct {
 	Message string         `gorm:"column:message"`
 	Time    string         `gorm:"column:time"`
 	Fields  datatypes.JSON `gorm:"column:fields"`
+}
+
+// logEntry 日志条目
+type logEntry struct {
+	level  Level
+	msg    string
+	fields []zap.Field
+}
+
+// LogWriter 异步日志写入器
+type LogWriter struct {
+	ch     chan logEntry
+	db     *gorm.DB
+	wg     sync.WaitGroup
+	ctx    context.Context
+	cancel context.CancelFunc
+}
+
+// newLogWriter 创建日志写入器
+func newLogWriter(db *gorm.DB, bufferSize int) *LogWriter {
+	ctx, cancel := context.WithCancel(context.Background())
+	return &LogWriter{
+		ch:     make(chan logEntry, bufferSize),
+		db:     db,
+		ctx:    ctx,
+		cancel: cancel,
+	}
+}
+
+// Start 启动后台写入协程
+func (lw *LogWriter) Start() {
+	lw.wg.Add(1)
+	go lw.run()
+}
+
+// run 后台处理协程
+func (lw *LogWriter) run() {
+	defer lw.wg.Done()
+	for {
+		select {
+		case entry := <-lw.ch:
+			save2MysqlDirect(lw.db, entry.level, entry.msg, entry.fields...)
+		case <-lw.ctx.Done():
+			// 处理剩余的日志
+			for {
+				select {
+				case entry := <-lw.ch:
+					save2MysqlDirect(lw.db, entry.level, entry.msg, entry.fields...)
+				default:
+					return
+				}
+			}
+		}
+	}
+}
+
+// Write 写入日志条目
+func (lw *LogWriter) Write(level Level, msg string, fields ...zap.Field) {
+	select {
+	case lw.ch <- logEntry{level: level, msg: msg, fields: fields}:
+	default:
+		// 缓冲区满时丢弃日志，避免阻塞
+		logger.Debug("log buffer full, dropping log entry")
+	}
+}
+
+// Stop 停止写入器并等待所有日志写入完成
+func (lw *LogWriter) Stop() {
+	if lw == nil {
+		return
+	}
+	lw.cancel()
+	lw.wg.Wait()
+}
+
+// Shutdown 优雅关闭日志写入器
+func Shutdown() {
+	if logWriter != nil {
+		logWriter.Stop()
+	}
 }
 
 func InitConfig() Config {
@@ -87,6 +170,9 @@ func Init(cfg Config, db *gorm.DB) bool {
 			logger.Error("failed to auto migrate rlog table", zap.Error(err))
 			return false
 		}
+		// 初始化异步日志写入器
+		logWriter = newLogWriter(db, 1000)
+		logWriter.Start()
 	}
 
 	var cores []zapcore.Core
@@ -144,20 +230,28 @@ func Debugln(msg string, fields ...zap.Field) { logger.Debug(msg, fields...) }
 func Warnln(msg string, fields ...zap.Field)  { logger.Warn(msg, fields...) }
 func Println(msg string, fields ...zap.Field) {
 	logger.Info(msg, fields...)
-	go save2Mysql(dbx, InfoLevel, msg, fields...) // 如果需要保存到MySQL，可以传入db实例
+	if logWriter != nil {
+		logWriter.Write(InfoLevel, msg, fields...)
+	}
 }
 func Infoln(msg string, fields ...zap.Field) {
 	logger.Info(msg, fields...)
-	go save2Mysql(dbx, InfoLevel, msg, fields...) // 如果需要保存到MySQL，可以传入db实例
+	if logWriter != nil {
+		logWriter.Write(InfoLevel, msg, fields...)
+	}
 }
 func Errln(msg string, fields ...zap.Field) {
 	logger.Error(msg, fields...)
-	go save2Mysql(dbx, ErrorLevel, msg, fields...) // 如果需要保存到MySQL，可以传入db实例
+	if logWriter != nil {
+		logWriter.Write(ErrorLevel, msg, fields...)
+	}
 	sendToSentry(ErrorLevel, msg, fields...)
 }
 func Fatalln(msg string, fields ...zap.Field) {
 	logger.Fatal(msg, fields...)
-	go save2Mysql(dbx, FatalLevel, msg, fields...) // 如果需要保存到MySQL，可以传入db实例
+	if logWriter != nil {
+		logWriter.Write(FatalLevel, msg, fields...)
+	}
 	sendToSentry(FatalLevel, msg, fields...)
 }
 
@@ -210,8 +304,9 @@ func sendToSentry(level Level, msg string, fields ...zap.Field) {
 	})
 }
 
-func save2Mysql(db *gorm.DB, level Level, msg string, fields ...zap.Field) {
-	if db == nil || level < ErrorLevel {
+// save2MysqlDirect 直接保存日志到数据库（由后台协程调用）
+func save2MysqlDirect(db *gorm.DB, level Level, msg string, fields ...zap.Field) {
+	if db == nil || level < InfoLevel {
 		return
 	}
 
