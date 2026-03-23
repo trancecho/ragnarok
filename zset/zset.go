@@ -34,16 +34,15 @@ type ZSet struct {
 	mu       sync.RWMutex
 }
 
-func (this *ZSet) ZRem(ele string) bool {
-	this.mu.Lock()
-	defer this.mu.Unlock()
-	score, ok := this.dict[ele]
+// zremInternal 内部删除方法（不获取锁，由调用方保证线程安全）
+func (zs *ZSet) zremInternal(ele string) bool {
+	score, ok := zs.dict[ele]
 	if !ok {
 		return false
 	}
 	updatePosNodes := make([]*zskiplistNode, maxLevel)
-	x := this.skiplist.header
-	for i := this.skiplist.level - 1; i >= 0; i-- {
+	x := zs.skiplist.header
+	for i := zs.skiplist.level - 1; i >= 0; i-- {
 		for nxt := x.level[i].forward; nxt != nil; {
 			if nxt.score > score || (nxt.score == score && nxt.ele > ele) {
 				x = nxt
@@ -56,11 +55,17 @@ func (this *ZSet) ZRem(ele string) bool {
 	}
 	x = x.level[0].forward // 找到要删除的节点
 	if x != nil && x.score == score && x.ele == ele {
-		zslDeleteNode(this.skiplist, x, updatePosNodes)
-		delete(this.dict, ele) // 从字典中删除
+		zslDeleteNode(zs.skiplist, x, updatePosNodes)
+		delete(zs.dict, ele) // 从字典中删除
 		return true
 	}
 	return false
+}
+
+func (this *ZSet) ZRem(ele string) bool {
+	this.mu.Lock()
+	defer this.mu.Unlock()
+	return this.zremInternal(ele)
 }
 
 func zslDeleteNode(zsl *zskiplist, x *zskiplistNode, updatePosNodes []*zskiplistNode) {
@@ -237,13 +242,12 @@ func randomLevel() int {
 // todo 复盘一下span
 func (this *ZSet) ZAdd(ele string, score float64) bool {
 	this.mu.Lock()
+	defer this.mu.Unlock()
 	if old, ok := this.dict[ele]; ok {
 		if old == score {
 			return false
 		}
-		this.mu.Unlock()
-		this.ZRem(ele)
-		this.mu.Lock()
+		this.zremInternal(ele)
 	}
 	this.dict[ele] = score
 
@@ -299,7 +303,6 @@ func (this *ZSet) ZAdd(ele string, score float64) bool {
 		this.skiplist.tail = x
 	}
 	this.skiplist.length++
-	this.mu.Unlock()
 	return true
 }
 
