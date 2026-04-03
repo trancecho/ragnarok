@@ -370,6 +370,13 @@ func (c *Client) KVWatch(ctx context.Context, bucket, keyPattern string, handler
 
 // ============ Helper Methods ============
 
+// EnsureStream creates the JetStream stream if it does not already exist.
+// Call this during application startup before publishing to the subject.
+func (c *Client) EnsureStream(ctx context.Context, streamName, subject string) error {
+	_, err := c.getOrCreateStream(ctx, streamName, subject)
+	return err
+}
+
 // getOrCreateStream gets or creates a JetStream stream
 func (c *Client) getOrCreateStream(ctx context.Context, streamName, subject string) (jetstream.Stream, error) {
 	stream, err := c.js.Stream(ctx, streamName)
